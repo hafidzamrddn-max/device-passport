@@ -5,28 +5,17 @@ import { Navbar } from '@/components/Navbar';
 import { 
   PieChart, Pie, Cell, ResponsiveContainer, 
   BarChart, Bar, XAxis, YAxis, Tooltip, 
-  CartesianGrid, AreaChart, Area,
-  RadialBarChart, RadialBar, Legend
+  CartesianGrid
 } from 'recharts';
 import { 
   Smartphone, MapPin, CheckCircle2, AlertTriangle, 
-  FileText, TrendingUp, ShieldCheck, Activity,
-  Layers, Zap, Clock, ChevronRight
+  FileText, Activity, Layers, Zap, ChevronRight, Loader2
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { getDevices } from '@/lib/storage';
 import { Device } from '@/types/device';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
-
-// Extend jsPDF type for autotable
-declare module 'jspdf' {
-  interface jsPDF {
-    autoTable: (options: any) => jsPDF;
-  }
-}
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -36,6 +25,7 @@ export default function ReportsPage() {
   const { isAuthenticated } = useAuth();
   const [devices, setDevices] = useState<Device[]>([]);
   const [isMounted, setIsMounted] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
@@ -46,7 +36,7 @@ export default function ReportsPage() {
 
   if (!isMounted || !isAuthenticated) return null;
 
-  // ENHANCED DATA PREPARATION
+  // DATA PREPARATION
   const categoryData = Object.entries(
     devices.reduce((acc, d) => {
       acc[d.category] = (acc[d.category] || 0) + 1;
@@ -68,34 +58,49 @@ export default function ReportsPage() {
     }, {} as Record<string, number>)
   ).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count).slice(0, 5);
 
-  // Modern Enterprise Palette (Emerald, Indigo, Rose, Amber, Sky)
   const COLORS = ['#10b981', '#6366f1', '#f43f5e', '#f59e0b', '#0ea5e9'];
 
-  const handlePrintFullReport = () => {
-    const doc = new jsPDF();
-    doc.setFontSize(22);
-    doc.setTextColor(16, 185, 129); // Emerald 500
-    doc.text('DULANG ASSET REGISTRY REPORT', 14, 22);
-    doc.setFontSize(10);
-    doc.setTextColor(100);
-    doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 30);
-    doc.text(`Total Managed Assets: ${devices.length}`, 14, 35);
+  const handlePrintFullReport = async () => {
+    if (isDownloading) return;
+    setIsDownloading(true);
     
-    const tableData = devices.map(d => [
-      d.name, d.brand, d.serialNumber, d.category, d.currentLocation, d.maintenanceStatus
-    ]);
+    try {
+      // Dynamic import to ensure it only runs on client and doesn't break build
+      const { default: jsPDF } = await import('jspdf');
+      await import('jspdf-autotable');
 
-    doc.autoTable({
-      startY: 45,
-      head: [['Asset Name', 'Brand', 'Serial Number', 'Category', 'Location', 'Status']],
-      body: tableData,
-      headStyles: { fillColor: [16, 185, 129], textColor: [255, 255, 255], fontStyle: 'bold' },
-      alternateRowStyles: { fillColor: [248, 249, 250] },
-      styles: { fontSize: 8, cellPadding: 4 },
-      margin: { top: 45 }
-    });
+      const doc = new jsPDF() as any;
+      
+      doc.setFontSize(22);
+      doc.setTextColor(16, 185, 129); // Emerald 500
+      doc.text('DULANG ASSET REGISTRY REPORT', 14, 22);
+      
+      doc.setFontSize(10);
+      doc.setTextColor(100);
+      doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 30);
+      doc.text(`Total Managed Assets: ${devices.length}`, 14, 35);
+      
+      const tableData = devices.map(d => [
+        d.name, d.brand, d.serialNumber, d.category, d.currentLocation, d.maintenanceStatus
+      ]);
 
-    doc.save('dulang_enterprise_report.pdf');
+      doc.autoTable({
+        startY: 45,
+        head: [['Asset Name', 'Brand', 'Serial Number', 'Category', 'Location', 'Status']],
+        body: tableData,
+        headStyles: { fillColor: [16, 185, 129], textColor: [255, 255, 255], fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [248, 249, 250] },
+        styles: { fontSize: 8, cellPadding: 4 },
+        margin: { top: 45 }
+      });
+
+      doc.save('dulang_fleet_report.pdf');
+    } catch (error) {
+      console.error("PDF Generation Error:", error);
+      alert("Failed to generate PDF. Please check console for errors.");
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   return (
@@ -117,9 +122,14 @@ export default function ReportsPage() {
             <div className="flex gap-4">
               <button 
                 onClick={handlePrintFullReport}
-                className="flex items-center gap-3 px-8 py-4 bg-slate-900 text-white rounded-2xl text-xs font-bold uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl shadow-slate-200"
+                disabled={isDownloading}
+                className="flex items-center gap-3 px-8 py-4 bg-slate-900 text-white rounded-2xl text-xs font-bold uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <FileText className="w-4 h-4" /> Download Fleet Report
+                {isDownloading ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" /> Preparing...</>
+                ) : (
+                  <><FileText className="w-4 h-4" /> Download Fleet Report</>
+                )}
               </button>
             </div>
           </div>
@@ -128,7 +138,7 @@ export default function ReportsPage() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             {[
               { label: 'Total Inventory', val: devices.length, icon: Smartphone, color: 'bg-indigo-50 text-indigo-600' },
-              { label: 'Asset Health', val: `${Math.round((statusData[0].value / devices.length) * 100)}%`, icon: CheckCircle2, color: 'bg-emerald-50 text-emerald-600' },
+              { label: 'Asset Health', val: devices.length > 0 ? `${Math.round((statusData[0].value / devices.length) * 100)}%` : '0%', icon: CheckCircle2, color: 'bg-emerald-50 text-emerald-600' },
               { label: 'System Warnings', val: statusData[1].value + statusData[2].value, icon: AlertTriangle, color: 'bg-amber-50 text-amber-600' },
               { label: 'Asset Clusters', val: locationData.length, icon: Layers, color: 'bg-sky-50 text-sky-600' }
             ].map((stat, i) => (
@@ -174,7 +184,7 @@ export default function ReportsPage() {
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                  <span className="text-3xl font-bold text-slate-900">{Math.round((statusData[0].value / devices.length) * 100)}%</span>
+                  <span className="text-3xl font-bold text-slate-900">{devices.length > 0 ? Math.round((statusData[0].value / devices.length) * 100) : 0}%</span>
                   <span className="text-[8px] font-black uppercase text-emerald-500 tracking-widest">Optimal</span>
                 </div>
               </div>
