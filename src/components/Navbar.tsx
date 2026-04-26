@@ -31,9 +31,14 @@ export const Navbar = ({ onAddClick }: NavbarProps) => {
     <nav className="border-b border-gray-100 bg-white sticky top-0 z-40">
       <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
         <div className="flex items-center gap-12">
-          <Link href="/" className="text-3xl font-black italic tracking-tighter text-black hover:opacity-80 transition-opacity">
+          <a 
+            href="https://dulang.id" 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            className="text-3xl font-black italic tracking-tighter text-black hover:opacity-80 transition-opacity"
+          >
             DULANG
-          </Link>
+          </a>
           <div className="hidden md:flex items-center gap-8 text-sm font-semibold text-gray-600">
             {navItems.map((item) => (
               <Link 

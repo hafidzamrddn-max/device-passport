@@ -61,3 +61,39 @@ body {
   background: #ccc;
   border-radius: 10px;
 }
+
+@media print {
+  /* Hide everything by default */
+  body * {
+    visibility: hidden;
+  }
+  
+  /* Only show the print-target (the card) */
+  .bg-white.rounded-xl.border.border-gray-100.shadow-sm.overflow-hidden {
+    visibility: visible;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  /* Ensure content inside the card is visible */
+  .bg-white.rounded-xl.border.border-gray-100.shadow-sm.overflow-hidden * {
+    visibility: visible;
+  }
+
+  /* Hide buttons and interactive elements during print */
+  button, .print-hidden {
+    display: none !important;
+  }
+
+  /* Optimization for A4 */
+  @page {
+    size: A4;
+    margin: 10mm;
+  }
+}
