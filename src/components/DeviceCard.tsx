@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { Battery, Wifi, Monitor, Trash2, ShieldCheck, AlertCircle, Info, Plus, Speaker, Cpu, Camera, Globe, ExternalLink, CheckCircle2, MapPin, Tag, History, Download, Calendar, Printer, Smartphone, Car, Building2, Box, Armchair } from 'lucide-react';
+import { Battery, Wifi, Monitor, Trash2, ShieldCheck, Plus, Cpu, CheckCircle2, MapPin, Tag, Printer, Smartphone, Car, Building2, Box, Armchair } from 'lucide-react';
 import { Device, MaintenanceLog, LocationRecord, DeviceCategory } from '@/types/device';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -63,8 +63,6 @@ export const DeviceCard = ({ device, onDelete, isDetailView = false }: DeviceCar
     setShowForm(false);
   };
 
-  // TINY QR DATA: Only the bare essentials to keep it scannable
-  // Format: n|s|st (Name|Serial|Status)
   const tinyData = `${device.name.substring(0,10)}|${device.serialNumber.substring(0,10)}|${device.maintenanceStatus}`;
   const qrUrl = origin ? `${origin}/device/${device.id}?v=${encodeURIComponent(btoa(tinyData))}` : '';
 
@@ -73,7 +71,6 @@ export const DeviceCard = ({ device, onDelete, isDetailView = false }: DeviceCar
       <div className="p-8 md:p-12">
         <div className="flex flex-col lg:flex-row gap-16">
           
-          {/* LEFT: IDENTITY */}
           <div className="lg:w-2/5 space-y-10">
             <div className="flex items-start gap-8">
               <div className="w-20 h-20 bg-[#f8f9fa] rounded-2xl flex items-center justify-center border border-gray-100 shrink-0 text-[#2e7d32]">
@@ -138,7 +135,6 @@ export const DeviceCard = ({ device, onDelete, isDetailView = false }: DeviceCar
             </div>
           </div>
 
-          {/* RIGHT: RECORDS */}
           <div className="lg:w-3/5 lg:border-l lg:border-gray-100 lg:pl-16 space-y-10">
             <div className="flex justify-between items-center border-b border-gray-100">
               <div className="flex gap-10">
@@ -233,7 +229,7 @@ export const DeviceCard = ({ device, onDelete, isDetailView = false }: DeviceCar
                   <QRCodeSVG 
                     value={qrUrl} 
                     size={90} 
-                    level="L" // Lowest level for simplest pattern
+                    level="L"
                     includeMargin={false}
                   />
                 ) : (

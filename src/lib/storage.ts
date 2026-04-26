@@ -74,7 +74,6 @@ const generateDummyData = (count: number): Device[] => {
       maintenanceStatus: status,
       maintenanceLogs: logs,
       purchaseHistory: [{ date: '01/01/2024', seller: 'Authorized Vendor' }],
-      imageUrl: null,
       createdAt: new Date().toISOString()
     };
   });

@@ -20,7 +20,6 @@ export const AddDeviceModal = ({ isOpen, onClose, onAdd }: AddDeviceModalProps) 
     owner: '',
     currentLocation: '',
     maintenanceStatus: 'Healthy' as MaintenanceStatus,
-    imageUrl: '',
   });
 
   if (!isOpen) return null;
@@ -30,7 +29,6 @@ export const AddDeviceModal = ({ isOpen, onClose, onAdd }: AddDeviceModalProps) 
     
     const newDevice: Device = {
       ...formData,
-      imageUrl: null,
       id: Math.random().toString(36).substr(2, 9),
       createdAt: new Date().toISOString(),
       locationHistory: [
@@ -54,7 +52,6 @@ export const AddDeviceModal = ({ isOpen, onClose, onAdd }: AddDeviceModalProps) 
       owner: '',
       currentLocation: '',
       maintenanceStatus: 'Healthy',
-      imageUrl: '',
     });
   };
 
