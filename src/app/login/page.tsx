@@ -45,8 +45,16 @@ export default function LoginPage() {
       localStorage.setItem('gemini_api_key', trimmedKey);
       router.push('/');
     } catch (err: any) {
-      console.error(err);
-      setError('Authentication failed. Please check if your API Key is active and correct.');
+      console.error("Gemini Auth Error:", err);
+      // Extract a meaningful error message
+      const errorMessage = err.message || "Unknown error occurred";
+      if (errorMessage.includes("fetch")) {
+        setError("Network/CORS Error: The browser blocked the request. Try disabling AdBlock or check your internet connection.");
+      } else if (errorMessage.includes("403") || errorMessage.includes("401")) {
+        setError("Invalid Key: The API Key is incorrect or doesn't have access to Gemini 1.5 Flash.");
+      } else {
+        setError(`API Error: ${errorMessage.substring(0, 100)}...`);
+      }
     } finally {
       setIsLoading(false);
     }
