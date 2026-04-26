@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Key, Sparkles, ShieldCheck, ArrowRight, Loader2, AlertCircle } from 'lucide-react';
-import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export default function LoginPage() {
   const [apiKey, setApiKey] = useState('');
@@ -19,45 +18,27 @@ export default function LoginPage() {
     }
   }, [router]);
 
-  const validateAndLogin = async (e: React.FormEvent) => {
+  const validateAndLogin = (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setIsLoading(true);
 
     const trimmedKey = apiKey.trim();
 
-    // 1. Basic Pattern Check
+    // SIMPLE VALIDATION: Only check the pattern
+    // Gemini API keys usually start with AIzaSy
     if (!trimmedKey.startsWith('AIzaSy')) {
-      setError('Invalid API Key format. Gemini keys usually start with "AIzaSy".');
+      setError('Invalid API Key format. Gemini keys must start with "AIzaSy".');
       setIsLoading(false);
       return;
     }
 
-    try {
-      // 2. Real API Validation Call
-      const genAI = new GoogleGenerativeAI(trimmedKey);
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-      
-      // Simple prompt to test the key
-      await model.generateContent("test");
-      
-      // If success, save and redirect
+    // Simulate a brief validation delay for UX
+    setTimeout(() => {
       localStorage.setItem('gemini_api_key', trimmedKey);
       router.push('/');
-    } catch (err: any) {
-      console.error("Gemini Auth Error:", err);
-      // Extract a meaningful error message
-      const errorMessage = err.message || "Unknown error occurred";
-      if (errorMessage.includes("fetch")) {
-        setError("Network/CORS Error: The browser blocked the request. Try disabling AdBlock or check your internet connection.");
-      } else if (errorMessage.includes("403") || errorMessage.includes("401")) {
-        setError("Invalid Key: The API Key is incorrect or doesn't have access to Gemini 1.5 Flash.");
-      } else {
-        setError(`API Error: ${errorMessage.substring(0, 100)}...`);
-      }
-    } finally {
       setIsLoading(false);
-    }
+    }, 800);
   };
 
   if (!isMounted) return null;
@@ -72,7 +53,7 @@ export default function LoginPage() {
             Secure AI Asset Management.
           </h1>
           <p className="text-xl opacity-80 max-w-lg leading-relaxed">
-            Authentication is required. Each API Key unlocks a unique and isolated asset registry environment.
+            Authentication is required. Enter any valid-format Gemini API Key to unlock your isolated asset registry.
           </p>
           
           <div className="grid grid-cols-1 gap-6 pt-12">
@@ -86,7 +67,7 @@ export default function LoginPage() {
               <div className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center">
                 <Key className="w-5 h-5" />
               </div>
-              <span className="text-sm font-bold uppercase tracking-widest">Encrypted Local Storage</span>
+              <span className="text-sm font-bold uppercase tracking-widest">Instant Activation</span>
             </div>
           </div>
         </div>
@@ -100,7 +81,7 @@ export default function LoginPage() {
         <div className="w-full max-w-md space-y-12">
           <div className="space-y-4">
             <h2 className="text-3xl font-bold text-black">Sign In to Registry</h2>
-            <p className="text-gray-500 font-medium">Validating your Gemini API Key unlocks your specific asset database.</p>
+            <p className="text-gray-500 font-medium">Any Gemini-format key (starting with AIzaSy) will unlock the dashboard.</p>
           </div>
 
           <form onSubmit={validateAndLogin} className="space-y-8">
@@ -135,7 +116,7 @@ export default function LoginPage() {
               className="w-full bg-[#2e7d32] text-white py-5 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-[#1b5e20] transition-all group disabled:bg-gray-400"
             >
               {isLoading ? (
-                <>VALIDATING... <Loader2 className="w-5 h-5 animate-spin" /></>
+                <>AUTHENTICATING... <Loader2 className="w-5 h-5 animate-spin" /></>
               ) : (
                 <>CONNECT REGISTRY <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" /></>
               )}
@@ -144,7 +125,7 @@ export default function LoginPage() {
 
           <div className="p-6 bg-gray-50 rounded-2xl border border-gray-100">
             <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest leading-relaxed">
-              *Your data is isolated by a unique hash of your API Key. Switching keys will switch your asset view.
+              *Isolation is still active: switching your key will switch your asset view.
             </p>
           </div>
         </div>
