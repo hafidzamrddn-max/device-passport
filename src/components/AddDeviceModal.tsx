@@ -30,17 +30,9 @@ export const AddDeviceModal = ({ isOpen, onClose, onAdd }: AddDeviceModalProps) 
     
     let finalImageUrl = formData.imageUrl;
     if (autoGenImage) {
-      // Logic for auto-generating image URL based on brand and model
-      // Using a reliable Unsplash Source URL format
-      const keywords = `${formData.brand} ${formData.model} electronics`.replace(/\s+/g, ',');
-      finalImageUrl = `https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&q=80&w=600&q=keywords=${keywords}`;
-      
-      // Better alternative: if it's a phone, laptop, etc.
-      if (formData.name.toLowerCase().includes('phone') || formData.brand.toLowerCase() === 'samsung' || formData.brand.toLowerCase() === 'apple') {
-        finalImageUrl = `https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&q=80&w=600`;
-      } else if (formData.name.toLowerCase().includes('macbook') || formData.name.toLowerCase().includes('laptop')) {
-        finalImageUrl = `https://images.unsplash.com/photo-1496181133206-80ce9b88a853?auto=format&fit=crop&q=80&w=600`;
-      }
+      // Use loremflickr for better dynamic keyword matching
+      const keywords = `${formData.brand},${formData.model},${formData.name}`.replace(/\s+/g, ',').toLowerCase();
+      finalImageUrl = `https://loremflickr.com/600/600/${keywords}`;
     }
 
     const newDevice: Device = {

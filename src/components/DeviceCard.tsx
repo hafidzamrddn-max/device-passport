@@ -8,7 +8,7 @@ import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { updateDevice } from '@/lib/storage';
 import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -24,6 +24,13 @@ export const DeviceCard = ({ device, onDelete, isDetailView = false }: DeviceCar
   const [showLogForm, setShowLogForm] = useState(false);
   const [logs, setLogs] = useState<MaintenanceLog[]>(device.maintenanceLogs || []);
   const [newLog, setNewLog] = useState({ date: new Date().toLocaleDateString('en-GB'), description: '' });
+  const [origin, setOrigin] = useState('');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setOrigin(window.location.origin);
+    }
+  }, []);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -53,29 +60,45 @@ export const DeviceCard = ({ device, onDelete, isDetailView = false }: DeviceCar
   };
 
   const exportPDF = () => {
-    const doc = new jsPDF() as any;
-    
-    doc.setFontSize(22);
-    doc.text('DEVICE PASSPORT', 20, 20);
-    
-    doc.setFontSize(12);
-    doc.text(`Asset Name: ${device.name}`, 20, 40);
-    doc.text(`Brand/Model: ${device.brand} ${device.model}`, 20, 50);
-    doc.text(`Serial Number: ${device.serialNumber}`, 20, 60);
-    doc.text(`Owner: ${device.owner}`, 20, 70);
-    doc.text(`Status: ${device.maintenanceStatus}`, 20, 80);
+    try {
+      const doc = new jsPDF();
+      
+      doc.setFontSize(22);
+      doc.setTextColor(46, 125, 50); // Dulang Green
+      doc.text('DULANG DEVICE PASSPORT', 20, 20);
+      
+      doc.setFontSize(10);
+      doc.setTextColor(100, 100, 100);
+      doc.text('DIGITAL ASSET RECORD & VERIFICATION', 20, 28);
+      
+      doc.setDrawColor(238, 238, 238);
+      doc.line(20, 35, 190, 35);
+      
+      doc.setFontSize(12);
+      doc.setTextColor(0, 0, 0);
+      doc.text(`Asset Name: ${device.name}`, 20, 45);
+      doc.text(`Brand/Model: ${device.brand} ${device.model}`, 20, 52);
+      doc.text(`Serial Number: ${device.serialNumber}`, 20, 59);
+      doc.text(`Owner: ${device.owner}`, 20, 66);
+      doc.text(`Status: ${device.maintenanceStatus}`, 20, 73);
 
-    const tableData = logs.map(log => [log.date, log.description]);
-    doc.autoTable({
-      head: [['Date', 'Maintenance Description']],
-      body: tableData,
-      startY: 90,
-    });
+      const tableData = logs.map(log => [log.date, log.description]);
+      autoTable(doc, {
+        head: [['Date', 'Maintenance Description']],
+        body: tableData,
+        startY: 85,
+        theme: 'striped',
+        headStyles: { fillColor: [46, 125, 50] },
+      });
 
-    doc.save(`${device.name.replace(/\s+/g, '_')}_Passport.pdf`);
+      doc.save(`${device.name.replace(/\s+/g, '_')}_Passport.pdf`);
+    } catch (err) {
+      console.error("PDF Export Error:", err);
+      alert("Failed to generate PDF. Please check the console for details.");
+    }
   };
 
-  const passportUrl = typeof window !== 'undefined' ? `${window.location.origin}/device/${device.id}` : '';
+  const passportUrl = origin ? `${origin}/device/${device.id}` : '';
 
   return (
     <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
@@ -123,7 +146,10 @@ export const DeviceCard = ({ device, onDelete, isDetailView = false }: DeviceCar
               <div className="flex justify-between items-center">
                 <h4 className="text-[10px] font-bold uppercase tracking-widest text-gray-500">System Metrics</h4>
                 <button 
-                  onClick={exportPDF}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    exportPDF();
+                  }}
                   className="flex items-center gap-1 text-[10px] font-bold text-[#2e7d32] hover:underline"
                 >
                   <Download className="w-3 h-3" /> EXPORT PDF
@@ -197,7 +223,13 @@ export const DeviceCard = ({ device, onDelete, isDetailView = false }: DeviceCar
                 </div>
               </div>
               <div className="p-4 bg-white border border-gray-100 rounded-xl shadow-sm">
-                <QRCodeSVG value={passportUrl} size={80} level="H" />
+                {passportUrl ? (
+                  <a href={passportUrl} target="_blank" rel="noopener noreferrer">
+                    <QRCodeSVG value={passportUrl} size={80} level="H" />
+                  </a>
+                ) : (
+                  <div className="w-20 h-20 bg-gray-50 animate-pulse rounded" />
+                )}
               </div>
             </div>
           </div>
