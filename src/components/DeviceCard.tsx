@@ -1,12 +1,14 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { Battery, Wifi, Monitor, Trash2, ShieldCheck, AlertCircle, Info, Plus, Speaker, Cpu, Camera, Globe, ExternalLink, CheckCircle2, MapPin, Tag, History, Download, Calendar } from 'lucide-react';
+import { Battery, Wifi, Monitor, Trash2, ShieldCheck, AlertCircle, Info, Plus, Speaker, Cpu, Camera, Globe, ExternalLink, CheckCircle2, MapPin, Tag, History, Download, Calendar, Printer, Mail, Loader2, Check, X } from 'lucide-react';
 import { Device, MaintenanceLog, LocationRecord } from '@/types/device';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { updateDevice } from '@/lib/storage';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -21,11 +23,16 @@ interface DeviceCardProps {
 export const DeviceCard = ({ device, onDelete, isDetailView = false }: DeviceCardProps) => {
   const [activeTab, setActiveTab] = useState<'maintenance' | 'location'>('maintenance');
   const [showForm, setShowForm] = useState(false);
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [email, setEmail] = useState('');
+  const [isSending, setIsSending] = useState(false);
+  const [isSent, setIsSent] = useState(false);
   const [logs, setLogs] = useState<MaintenanceLog[]>(device.maintenanceLogs || []);
   const [locations, setLocations] = useState<LocationRecord[]>(device.locationHistory || []);
   const [newVal, setNewVal] = useState('');
   const [customDate, setCustomDate] = useState(new Date().toISOString().split('T')[0]);
   const [origin, setOrigin] = useState('');
+  const cardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -35,8 +42,6 @@ export const DeviceCard = ({ device, onDelete, isDetailView = false }: DeviceCar
 
   const handleAddRecord = () => {
     if (!newVal) return;
-    
-    // Format date for display
     const dateObj = new Date(customDate);
     const displayDate = dateObj.toLocaleDateString('en-GB');
     
@@ -55,10 +60,70 @@ export const DeviceCard = ({ device, onDelete, isDetailView = false }: DeviceCar
     setShowForm(false);
   };
 
-  const passportUrl = origin ? `${origin}/device/${device.id}` : '';
+  const generatePDF = async () => {
+    if (!cardRef.current) return null;
+    const canvas = await html2canvas(cardRef.current, { scale: 2 });
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF({
+      orientation: 'landscape',
+      unit: 'px',
+      format: [canvas.width, canvas.height]
+    });
+    pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+    return pdf.output('datauristring');
+  };
+
+  const handleSendEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) return;
+    setIsSending(true);
+
+    try {
+      const pdfBase64 = await generatePDF();
+      const portableData = btoa(JSON.stringify({
+        n: device.name, b: device.brand, m: device.model, s: device.serialNumber,
+        c: device.category, l: device.currentLocation, st: device.maintenanceStatus,
+        img: device.imageUrl, o: device.owner
+      }));
+      const passportUrl = `${origin}/device/${device.id}?p=${encodeURIComponent(portableData)}`;
+
+      const response = await fetch('/api/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email,
+          deviceName: device.name,
+          serialNumber: device.serialNumber,
+          status: device.maintenanceStatus,
+          pdfBase64,
+          passportUrl
+        }),
+      });
+
+      if (response.ok) {
+        setIsSent(true);
+        setTimeout(() => {
+          setIsSent(false);
+          setShowEmailModal(false);
+        }, 3000);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const portableData = btoa(JSON.stringify({
+    n: device.name, b: device.brand, m: device.model, s: device.serialNumber,
+    c: device.category, l: device.currentLocation, st: device.maintenanceStatus,
+    img: device.imageUrl, o: device.owner
+  }));
+
+  const passportUrl = origin ? `${origin}/device/${device.id}?p=${encodeURIComponent(portableData)}` : '';
 
   return (
-    <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
+    <div ref={cardRef} className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow relative">
       <div className="p-8 md:p-12">
         <div className="flex flex-col lg:flex-row gap-16">
           
@@ -120,12 +185,21 @@ export const DeviceCard = ({ device, onDelete, isDetailView = false }: DeviceCar
             <div className="p-6 bg-gray-50 rounded-xl space-y-4 border border-gray-100 print:bg-white print:border-none print:p-0">
               <div className="flex justify-between items-center print:hidden">
                 <h4 className="text-[10px] font-bold uppercase tracking-widest text-gray-500">System Metrics</h4>
-                <button 
-                  onClick={() => window.print()}
-                  className="flex items-center gap-1 text-[10px] font-bold text-[#2e7d32] hover:underline"
-                >
-                  <Download className="w-3 h-3" /> PRINT PASSPORT
-                </button>
+                <div className="flex gap-4">
+                  <button 
+                    onClick={() => setShowEmailModal(true)}
+                    className="p-1 text-gray-400 hover:text-[#2e7d32] transition-colors"
+                    title="Send to Email"
+                  >
+                    <Mail className="w-4 h-4" />
+                  </button>
+                  <button 
+                    onClick={() => window.print()}
+                    className="flex items-center gap-1 text-[10px] font-bold text-[#2e7d32] hover:underline"
+                  >
+                    <Printer className="w-3 h-3" /> PRINT
+                  </button>
+                </div>
               </div>
               <div className="grid grid-cols-3 gap-3">
                 {[Battery, Cpu, Wifi].map((Icon, i) => (
@@ -158,7 +232,7 @@ export const DeviceCard = ({ device, onDelete, isDetailView = false }: DeviceCar
               {!isDetailView && (
                 <button 
                   onClick={() => onDelete(device.id)}
-                  className="p-2 text-gray-300 hover:text-red-500 transition-colors"
+                  className="p-2 text-gray-300 hover:text-red-500 transition-colors print:hidden"
                 >
                   <Trash2 className="w-5 h-5" />
                 </button>
@@ -186,7 +260,7 @@ export const DeviceCard = ({ device, onDelete, isDetailView = false }: DeviceCar
             </div>
 
             {showForm ? (
-              <div className="p-6 bg-gray-50 rounded-xl border border-gray-100 space-y-4">
+              <div className="p-6 bg-gray-50 rounded-xl border border-gray-100 space-y-4 print:hidden">
                 <div className="flex flex-col md:flex-row gap-4">
                   <div className="flex-1 space-y-1">
                     <label className="text-[10px] font-bold uppercase text-gray-400">Description / Location</label>
@@ -199,15 +273,12 @@ export const DeviceCard = ({ device, onDelete, isDetailView = false }: DeviceCar
                   </div>
                   <div className="w-full md:w-40 space-y-1">
                     <label className="text-[10px] font-bold uppercase text-gray-400">Date</label>
-                    <div className="relative">
-                      <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-                      <input 
-                        type="date"
-                        className="w-full bg-white border border-gray-200 rounded-lg p-3 pl-9 text-[10px] font-bold outline-none focus:border-[#2e7d32]"
-                        value={customDate}
-                        onChange={(e) => setCustomDate(e.target.value)}
-                      />
-                    </div>
+                    <input 
+                      type="date"
+                      className="w-full bg-white border border-gray-200 rounded-lg p-3 text-[10px] font-bold outline-none focus:border-[#2e7d32]"
+                      value={customDate}
+                      onChange={(e) => setCustomDate(e.target.value)}
+                    />
                   </div>
                 </div>
                 <div className="flex gap-3">
@@ -218,7 +289,7 @@ export const DeviceCard = ({ device, onDelete, isDetailView = false }: DeviceCar
             ) : (
               <button 
                 onClick={() => setShowForm(true)}
-                className="flex items-center gap-2 text-[10px] font-bold text-[#2e7d32] hover:underline uppercase tracking-widest"
+                className="flex items-center gap-2 text-[10px] font-bold text-[#2e7d32] hover:underline uppercase tracking-widest print:hidden"
               >
                 <Plus className="w-4 h-4" /> {activeTab === 'maintenance' ? 'Add Log' : 'Update Location'}
               </button>
@@ -244,6 +315,48 @@ export const DeviceCard = ({ device, onDelete, isDetailView = false }: DeviceCar
           </div>
         </div>
       </div>
+
+      {/* Email Modal */}
+      {showEmailModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm print:hidden">
+          <div className="bg-white w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="p-6 border-b border-gray-50 flex justify-between items-center bg-gray-50">
+              <h2 className="text-sm font-bold text-black uppercase tracking-widest">Send Asset Report</h2>
+              <button onClick={() => setShowEmailModal(false)} className="text-gray-400 hover:text-black">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleSendEmail} className="p-8 space-y-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold uppercase text-gray-400">Recipient Email</label>
+                <input 
+                  type="email" 
+                  required
+                  placeholder="manager@example.com"
+                  className="w-full border-b-2 border-gray-100 py-3 text-sm outline-none focus:border-[#2e7d32] transition-all"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </div>
+              <button 
+                disabled={isSending || isSent}
+                className={cn(
+                  "w-full py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all text-xs uppercase tracking-widest",
+                  isSent ? "bg-green-500 text-white" : "bg-[#2e7d32] text-white hover:bg-[#1b5e20]"
+                )}
+              >
+                {isSending ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : isSent ? (
+                  <><Check className="w-5 h-5" /> SENT SUCCESS</>
+                ) : (
+                  <><Mail className="w-5 h-5" /> SEND REPORT</>
+                )}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
