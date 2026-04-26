@@ -1,143 +1,288 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Navbar } from '@/components/Navbar';
-import { Send, Loader2, Bot, User, BrainCircuit, Sparkles } from 'lucide-react';
+import { 
+  PieChart, Pie, Cell, ResponsiveContainer, 
+  BarChart, Bar, XAxis, YAxis, Tooltip, 
+  CartesianGrid, AreaChart, Area,
+  RadialBarChart, RadialBar, Legend
+} from 'recharts';
+import { 
+  Smartphone, MapPin, CheckCircle2, AlertTriangle, 
+  FileText, TrendingUp, ShieldCheck, Activity,
+  Layers, Zap, Clock, ChevronRight
+} from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { getDevices } from '@/lib/storage';
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { Device } from '@/types/device';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+
+// Extend jsPDF type for autotable
+declare module 'jspdf' {
+  interface jsPDF {
+    autoTable: (options: any) => jsPDF;
+  }
+}
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-interface Message {
-  role: 'user' | 'assistant';
-  content: string;
-}
-
 export default function ReportsPage() {
-  const { isAuthenticated, apiKey } = useAuth();
-  const [messages, setMessages] = useState<Message[]>([
-    { role: 'assistant', content: "Hello! I am your AI Asset Analyst. I have access to your full inventory (100+ assets). How can I help you today? You can ask for a 'Summary Report' or 'Maintenance Predictions'." }
-  ]);
-  const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const { isAuthenticated } = useAuth();
+  const [devices, setDevices] = useState<Device[]>([]);
+  const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    setIsMounted(true);
+    if (isAuthenticated) {
+      setDevices(getDevices());
     }
-  }, [messages]);
+  }, [isAuthenticated]);
 
-  if (!isAuthenticated) return null;
+  if (!isMounted || !isAuthenticated) return null;
 
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const activeKey = apiKey || localStorage.getItem('gemini_api_key');
+  // ENHANCED DATA PREPARATION
+  const categoryData = Object.entries(
+    devices.reduce((acc, d) => {
+      acc[d.category] = (acc[d.category] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>)
+  ).map(([name, value]) => ({ name, value }));
+
+  const statusData = [
+    { name: 'Healthy', value: devices.filter(d => d.maintenanceStatus === 'Healthy').length, fill: '#10b981' },
+    { name: 'Warning', value: devices.filter(d => d.maintenanceStatus === 'Warning').length, fill: '#f59e0b' },
+    { name: 'Critical', value: devices.filter(d => d.maintenanceStatus === 'Critical').length, fill: '#ef4444' },
+  ];
+
+  const locationData = Object.entries(
+    devices.reduce((acc, d) => {
+      const loc = d.currentLocation || 'Unknown';
+      acc[loc] = (acc[loc] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>)
+  ).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count).slice(0, 5);
+
+  // Modern Enterprise Palette (Emerald, Indigo, Rose, Amber, Sky)
+  const COLORS = ['#10b981', '#6366f1', '#f43f5e', '#f59e0b', '#0ea5e9'];
+
+  const handlePrintFullReport = () => {
+    const doc = new jsPDF();
+    doc.setFontSize(22);
+    doc.setTextColor(16, 185, 129); // Emerald 500
+    doc.text('DULANG ASSET REGISTRY REPORT', 14, 22);
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 30);
+    doc.text(`Total Managed Assets: ${devices.length}`, 14, 35);
     
-    if (!input.trim() || isLoading || !activeKey) return;
+    const tableData = devices.map(d => [
+      d.name, d.brand, d.serialNumber, d.category, d.currentLocation, d.maintenanceStatus
+    ]);
 
-    const userMessage = input.trim();
-    setInput('');
-    setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
-    setIsLoading(true);
+    doc.autoTable({
+      startY: 45,
+      head: [['Asset Name', 'Brand', 'Serial Number', 'Category', 'Location', 'Status']],
+      body: tableData,
+      headStyles: { fillColor: [16, 185, 129], textColor: [255, 255, 255], fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [248, 249, 250] },
+      styles: { fontSize: 8, cellPadding: 4 },
+      margin: { top: 45 }
+    });
 
-    try {
-      const devices = getDevices();
-      const devicesJson = JSON.stringify(devices.slice(0, 50), null, 2); // Send first 50 for context limit
-      
-      const genAI = new GoogleGenerativeAI(activeKey);
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
-      const prompt = `
-        You are a professional Asset Lifecycle Analyst for Dulang Enterprise.
-        CONTEXT: ${devicesJson}
-        
-        USER: ${userMessage}
-        
-        INSTRUCTIONS:
-        1. Analyze the asset data provided.
-        2. Provide professional, data-driven answers.
-        3. Use bold text for key metrics.
-        4. If a report is requested, provide a structured summary of Health, Locations, and Recommendations.
-      `;
-
-      const result = await model.generateContent(prompt);
-      setMessages(prev => [...prev, { role: 'assistant', content: result.response.text() }]);
-    } catch (err) {
-      console.error(err);
-      setMessages(prev => [...prev, { role: 'assistant', content: "Error connecting to AI service. Please check your Gemini API Key." }]);
-    } finally {
-      setIsLoading(false);
-    }
+    doc.save('dulang_enterprise_report.pdf');
   };
 
   return (
     <main className="min-h-screen bg-white">
       <Navbar />
       
-      <section className="bg-[#f8f9fa] h-[calc(100vh-80px)] p-6">
-        <div className="max-w-4xl mx-auto h-full flex flex-col bg-white rounded-3xl border border-gray-100 shadow-xl overflow-hidden">
+      <section className="bg-[#f8fafc] py-16 px-6 min-h-[calc(100vh-80px)]">
+        <div className="max-w-7xl mx-auto space-y-12">
           
-          <div className="p-8 border-b border-gray-50 flex items-center justify-between bg-[#2e7d32] text-white">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center">
-                <BrainCircuit className="w-7 h-7" />
+          {/* Header */}
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.3em] text-[#10b981]">
+                <Activity className="w-3 h-3" /> System Intelligence
               </div>
-              <div>
-                <h1 className="text-lg font-bold tracking-tight">AI Asset Intelligence</h1>
-                <p className="text-[10px] uppercase tracking-[0.2em] opacity-70 font-bold">Enterprise Analytics Engine</p>
-              </div>
+              <h1 className="text-4xl font-bold text-slate-900 tracking-tight">Fleet Analytics</h1>
+              <p className="text-slate-500 font-medium text-sm">Monitoring {devices.length} enterprise assets across {locationData.length} active hubs.</p>
+            </div>
+            <div className="flex gap-4">
+              <button 
+                onClick={handlePrintFullReport}
+                className="flex items-center gap-3 px-8 py-4 bg-slate-900 text-white rounded-2xl text-xs font-bold uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl shadow-slate-200"
+              >
+                <FileText className="w-4 h-4" /> Download Fleet Report
+              </button>
             </div>
           </div>
 
-          <div ref={scrollRef} className="flex-1 overflow-y-auto p-10 space-y-8 custom-scrollbar">
-            {messages.map((msg, i) => (
-              <div key={i} className={cn("flex gap-6", msg.role === 'user' ? "flex-row-reverse" : "flex-row")}>
-                <div className={cn(
-                  "w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-sm",
-                  msg.role === 'user' ? "bg-gray-50" : "bg-[#e8f5e9]"
-                )}>
-                  {msg.role === 'user' ? <User className="w-6 h-6 text-gray-400" /> : <Bot className="w-6 h-6 text-[#2e7d32]" />}
+          {/* Top Metric Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            {[
+              { label: 'Total Inventory', val: devices.length, icon: Smartphone, color: 'bg-indigo-50 text-indigo-600' },
+              { label: 'Asset Health', val: `${Math.round((statusData[0].value / devices.length) * 100)}%`, icon: CheckCircle2, color: 'bg-emerald-50 text-emerald-600' },
+              { label: 'System Warnings', val: statusData[1].value + statusData[2].value, icon: AlertTriangle, color: 'bg-amber-50 text-amber-600' },
+              { label: 'Asset Clusters', val: locationData.length, icon: Layers, color: 'bg-sky-50 text-sky-600' }
+            ].map((stat, i) => (
+              <div key={i} className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm space-y-4 hover:shadow-md transition-shadow">
+                <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center", stat.color)}>
+                  <stat.icon className="w-6 h-6" />
                 </div>
-                <div className={cn(
-                  "max-w-[80%] p-6 rounded-3xl text-sm leading-relaxed shadow-sm",
-                  msg.role === 'user' ? "bg-gray-50 text-gray-800 rounded-tr-none" : "bg-[#e8f5e9]/30 text-gray-800 rounded-tl-none border border-[#e8f5e9]/50"
-                )}>
-                  <div className="whitespace-pre-wrap">{msg.content}</div>
+                <div>
+                  <div className="text-3xl font-bold text-slate-900">{stat.val}</div>
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">{stat.label}</div>
                 </div>
               </div>
             ))}
-            {isLoading && (
-              <div className="flex gap-6 animate-pulse">
-                <div className="w-12 h-12 bg-gray-100 rounded-2xl" />
-                <div className="bg-gray-50 h-16 w-64 rounded-3xl rounded-tl-none" />
-              </div>
-            )}
           </div>
 
-          <form onSubmit={handleSendMessage} className="p-8 border-t border-gray-50 bg-gray-50">
-            <div className="relative">
-              <input 
-                type="text" 
-                placeholder="Ask your AI Analyst about inventory health or trends..."
-                className="w-full bg-white border border-gray-200 rounded-2xl py-5 pl-8 pr-20 outline-none focus:border-[#2e7d32] transition-all shadow-sm font-medium"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-              />
-              <button 
-                type="submit"
-                disabled={isLoading}
-                className="absolute right-3 top-1/2 -translate-y-1/2 w-14 h-14 bg-[#2e7d32] text-white rounded-xl flex items-center justify-center hover:bg-[#1b5e20] transition-all shadow-lg shadow-[#2e7d32]/20 disabled:bg-gray-300"
-              >
-                <Send className="w-6 h-6" />
+          {/* Main Analytics Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            
+            {/* Health Radial Chart */}
+            <div className="lg:col-span-4 bg-white p-10 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-8 flex flex-col justify-between">
+              <div className="space-y-1">
+                <h2 className="text-sm font-bold uppercase tracking-widest text-slate-900">Health Composition</h2>
+                <p className="text-xs text-slate-400 font-medium">Breakdown of fleet operational status</p>
+              </div>
+              <div className="h-64 flex items-center justify-center relative">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={statusData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={70}
+                      outerRadius={90}
+                      paddingAngle={8}
+                      dataKey="value"
+                      stroke="none"
+                    >
+                      {statusData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.fill} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                  <span className="text-3xl font-bold text-slate-900">{Math.round((statusData[0].value / devices.length) * 100)}%</span>
+                  <span className="text-[8px] font-black uppercase text-emerald-500 tracking-widest">Optimal</span>
+                </div>
+              </div>
+              <div className="space-y-3">
+                {statusData.map((item, i) => (
+                  <div key={i} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
+                    <div className="flex items-center gap-3">
+                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: item.fill }} />
+                      <span className="text-[10px] font-bold uppercase text-slate-500">{item.name}</span>
+                    </div>
+                    <span className="text-xs font-bold text-slate-900">{item.value} Assets</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Location Distribution */}
+            <div className="lg:col-span-8 bg-white p-10 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-8">
+              <div className="flex justify-between items-start">
+                <div className="space-y-1">
+                  <h2 className="text-sm font-bold uppercase tracking-widest text-slate-900">Top Strategic Hubs</h2>
+                  <p className="text-xs text-slate-400 font-medium">Asset density across primary facilities</p>
+                </div>
+                <div className="px-4 py-2 bg-slate-50 rounded-full text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                  Live View
+                </div>
+              </div>
+              <div className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={locationData} layout="vertical" margin={{ left: 40 }}>
+                    <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f1f5f9" />
+                    <XAxis type="number" hide />
+                    <YAxis 
+                      dataKey="name" 
+                      type="category" 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fontSize: 10, fontWeight: 700, fill: '#64748b' }}
+                      width={100}
+                    />
+                    <Tooltip cursor={{ fill: '#f8fafc' }} />
+                    <Bar 
+                      dataKey="count" 
+                      radius={[0, 10, 10, 0]} 
+                      barSize={32}
+                    >
+                      {locationData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                 {categoryData.slice(0, 4).map((cat, i) => (
+                   <div key={i} className="p-4 bg-slate-50 rounded-2xl flex flex-col gap-1 border border-slate-100">
+                     <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{cat.name}</span>
+                     <span className="text-lg font-bold text-slate-900">{cat.value}</span>
+                   </div>
+                 ))}
+              </div>
+            </div>
+
+          </div>
+
+          {/* Critical Maintenance Feed */}
+          <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden">
+            <div className="p-10 border-b border-slate-50 flex justify-between items-center bg-slate-50/50">
+              <div className="space-y-1">
+                <h2 className="text-sm font-bold uppercase tracking-widest text-slate-900">Maintenance Priority Feed</h2>
+                <p className="text-xs text-slate-400 font-medium">Items requiring immediate management intervention</p>
+              </div>
+              <button className="text-[10px] font-black text-emerald-600 uppercase tracking-widest hover:underline flex items-center gap-1">
+                View All <ChevronRight className="w-3 h-3" />
               </button>
             </div>
-          </form>
+            <div className="divide-y divide-slate-50">
+              {devices.filter(d => d.maintenanceStatus !== 'Healthy').slice(0, 6).map((device, i) => (
+                <div key={i} className="p-8 hover:bg-slate-50/50 transition-colors flex items-center justify-between group">
+                  <div className="flex items-center gap-6">
+                    <div className={cn(
+                      "w-12 h-12 rounded-2xl flex items-center justify-center border transition-all",
+                      device.maintenanceStatus === 'Warning' ? "bg-amber-50 border-amber-100 text-amber-500" : "bg-rose-50 border-rose-100 text-rose-500"
+                    )}>
+                      <Zap className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-slate-900">{device.name}</h3>
+                      <p className="text-xs text-slate-400 font-medium tracking-tight">ID: {device.serialNumber} • <span className="font-bold">{device.currentLocation}</span></p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-12">
+                    <div className="hidden md:block text-right">
+                      <div className="text-[9px] font-black text-slate-300 uppercase tracking-[0.2em]">Risk Level</div>
+                      <div className={cn(
+                        "text-xs font-bold",
+                        device.maintenanceStatus === 'Warning' ? "text-amber-500" : "text-rose-500"
+                      )}>{device.maintenanceStatus.toUpperCase()}</div>
+                    </div>
+                    <div className="w-8 h-8 rounded-full border border-slate-100 flex items-center justify-center group-hover:border-slate-300 transition-all">
+                      <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-900" />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
         </div>
       </section>
     </main>
