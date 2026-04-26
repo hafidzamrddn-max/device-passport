@@ -37,7 +37,16 @@ export default function ReportsPage() {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || isLoading || !apiKey) return;
+    
+    // Explicitly grab key from localstorage if state is trailing
+    const activeKey = apiKey || localStorage.getItem('gemini_api_key');
+    
+    if (!input.trim() || isLoading || !activeKey) {
+      if (!activeKey) {
+        setMessages(prev => [...prev, { role: 'assistant', content: "API Key not found. Please log out and log in again." }]);
+      }
+      return;
+    }
 
     const userMessage = input.trim();
     setInput('');
@@ -48,7 +57,9 @@ export default function ReportsPage() {
       const devices = getDevices();
       const devicesJson = JSON.stringify(devices, null, 2);
       
-      const genAI = new GoogleGenerativeAI(apiKey);
+      const genAI = new GoogleGenerativeAI(activeKey);
+      
+      // We try 'gemini-1.5-flash' but use a flexible approach
       const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
       const prompt = `
@@ -78,8 +89,20 @@ export default function ReportsPage() {
       
       setMessages(prev => [...prev, { role: 'assistant', content: responseText }]);
     } catch (err: any) {
-      console.error(err);
-      setMessages(prev => [...prev, { role: 'assistant', content: "Sorry, I encountered an error while analyzing your data. Please check your API Key and connection." }]);
+      console.error("Gemini AI Error:", err);
+      let errorMsg = "Sorry, I encountered an error. ";
+      
+      if (err.message?.includes('404')) {
+        errorMsg += "The model 'gemini-1.5-flash' was not found. Your API key might not have access to this model yet, or it's not available in your region.";
+      } else if (err.message?.includes('429')) {
+        errorMsg += "Rate limit exceeded. Please wait a moment and try again.";
+      } else if (err.message?.includes('API key')) {
+        errorMsg += "Invalid API Key. Please check your key in the login page.";
+      } else {
+        errorMsg += "Please check your internet connection and API Key.";
+      }
+      
+      setMessages(prev => [...prev, { role: 'assistant', content: errorMsg }]);
     } finally {
       setIsLoading(false);
     }
