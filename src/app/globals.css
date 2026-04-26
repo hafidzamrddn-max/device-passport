@@ -3,97 +3,84 @@
 @theme {
   --color-brand-bg: #ffffff;
   --color-brand-card: #ffffff;
-  --color-brand-primary: #2e7d32;
+  --color-brand-primary: #10b981;
   --color-brand-secondary: #064e3b;
-  --color-brand-accent: #4caf50;
-  --color-brand-warning: #fbc02d;
-  --color-brand-critical: #d32f2f;
-  --color-brand-text: #1a1a1a;
-  --color-brand-text-muted: #666666;
-  --color-brand-border: #eeeeee;
-  
-  --radius-passport: 1rem;
+  --color-brand-accent: #34d399;
+  --color-brand-warning: #f59e0b;
+  --color-brand-critical: #ef4444;
+  --color-brand-text: #0f172a;
+  --color-brand-text-muted: #64748b;
+  --color-brand-border: #f1f5f9;
 }
 
 :root {
   --background: #ffffff !important;
-  --foreground: #1a1a1a !important;
+  --foreground: #0f172a !important;
 }
 
 /* Force light mode regardless of system settings */
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #ffffff !important;
-    --foreground: #1a1a1a !important;
+    --foreground: #0f172a !important;
   }
 }
 
 body {
   background-color: #ffffff !important;
-  color: #1a1a1a !important;
+  color: #0f172a !important;
   font-family: var(--font-geist-sans), sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
-@layer components {
-  .passport-card {
-    @apply bg-white rounded-passport border border-[#eeeeee] shadow-sm;
-  }
-  
-  .btn-primary {
-    @apply bg-[#2e7d32] text-white px-8 py-3 rounded-md font-bold hover:bg-[#1b5e20] transition-all uppercase tracking-wider text-xs;
-  }
-
-  .section-title {
-    @apply text-3xl md:text-4xl font-bold text-[#2e7d32] mb-6;
-  }
-}
-
-.custom-scrollbar::-webkit-scrollbar {
-  width: 6px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: #f1f1f1;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #ccc;
-  border-radius: 10px;
-}
-
+/* NUCLEAR PRINT FIX */
 @media print {
-  /* Hide everything by default */
-  body * {
-    visibility: hidden;
-  }
-  
-  /* Only show the print-target (the card) */
-  .bg-white.rounded-xl.border.border-gray-100.shadow-sm.overflow-hidden {
-    visibility: visible;
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-    margin: 0;
-    padding: 0;
-    border: none !important;
-    box-shadow: none !important;
-  }
-
-  /* Ensure content inside the card is visible */
-  .bg-white.rounded-xl.border.border-gray-100.shadow-sm.overflow-hidden * {
-    visibility: visible;
-  }
-
-  /* Hide buttons and interactive elements during print */
-  button, .print-hidden {
+  /* 1. Hide anything marked as no-print */
+  .no-print, 
+  nav, 
+  button, 
+  .print-hidden {
     display: none !important;
   }
 
-  /* Optimization for A4 */
+  /* 2. Remove all layout constraints that cause blank pages in Safari/Chrome */
+  body, html, main, section, div {
+    display: block !important;
+    position: static !important;
+    overflow: visible !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    float: none !important;
+    background: transparent !important;
+  }
+
+  /* 3. Re-enable colors and backgrounds */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  /* 4. Individual Card Print optimization */
+  .device-card-print {
+    padding: 20px !important;
+    border: 1px solid #eee !important;
+    margin-bottom: 20px !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* 5. Force Charts to appear */
+  .recharts-responsive-container {
+    width: 600px !important;
+    height: 400px !important;
+    display: block !important;
+  }
+
   @page {
-    size: A4;
+    size: auto;
     margin: 10mm;
   }
 }

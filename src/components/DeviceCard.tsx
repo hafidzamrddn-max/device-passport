@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { Battery, Wifi, Monitor, Trash2, ShieldCheck, Plus, Cpu, CheckCircle2, MapPin, Tag, Printer, Smartphone, Car, Building2, Box, Armchair, ExternalLink } from 'lucide-react';
+import { Battery, Wifi, Trash2, ShieldCheck, Plus, Cpu, CheckCircle2, MapPin, Tag, Printer, Smartphone, Car, Building2, Box, Armchair, ExternalLink } from 'lucide-react';
 import { Device, MaintenanceLog, LocationRecord, DeviceCategory } from '@/types/device';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -69,14 +69,13 @@ export const DeviceCard = ({ device, onDelete, isDetailView = false }: DeviceCar
   const qrUrl = origin ? `${origin}${passportPath}` : '';
 
   return (
-    <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden hover:shadow-xl transition-all duration-500 group/card">
+    <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden hover:shadow-xl transition-all duration-500">
       <div className="p-8 md:p-12">
         <div className="flex flex-col lg:flex-row gap-16">
           
-          {/* LEFT: IDENTITY */}
           <div className="lg:w-2/5 space-y-10">
             <div className="flex items-start gap-8">
-              <div className="w-20 h-20 bg-slate-50 rounded-2xl flex items-center justify-center border border-slate-100 shrink-0 text-emerald-500 group-hover/card:scale-110 transition-transform duration-500">
+              <div className="w-20 h-20 bg-slate-50 rounded-2xl flex items-center justify-center border border-slate-100 shrink-0 text-emerald-500">
                 <CategoryIcon category={device.category} className="w-10 h-10" />
               </div>
               <div className="space-y-3">
@@ -101,36 +100,25 @@ export const DeviceCard = ({ device, onDelete, isDetailView = false }: DeviceCar
                 <p className="text-sm font-mono font-bold text-slate-900 bg-slate-50 px-2 py-1 rounded w-fit">{device.serialNumber}</p>
               </div>
               <div className="space-y-2">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-300">Responsible</p>
-                <p className="text-sm font-bold text-slate-700 truncate">{device.owner}</p>
-              </div>
-              <div className="space-y-2">
                 <p className="text-[10px] font-bold uppercase tracking-widest text-slate-300">System Status</p>
                 <div className="flex items-center gap-2">
-                  <div className={cn(
-                    "w-2.5 h-2.5 rounded-full shadow-sm animate-pulse",
-                    device.maintenanceStatus === 'Healthy' ? "bg-emerald-500" : 
-                    device.maintenanceStatus === 'Warning' ? "bg-amber-500" : "bg-rose-500"
-                  )} />
+                  <div className={cn("w-2.5 h-2.5 rounded-full", device.maintenanceStatus === 'Healthy' ? "bg-emerald-500" : device.maintenanceStatus === 'Warning' ? "bg-amber-500" : "bg-rose-500")} />
                   <span className="text-xs font-black uppercase text-slate-700 tracking-wider">{device.maintenanceStatus}</span>
                 </div>
               </div>
             </div>
 
             <div className="p-8 bg-slate-50/50 rounded-3xl space-y-6 border border-slate-100 print:bg-white print:border-none print:p-0">
-              <div className="flex justify-between items-center print:hidden">
+              <div className="flex justify-between items-center print-hidden">
                 <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Security Nodes</h4>
-                <button 
-                  onClick={() => window.print()}
-                  className="flex items-center gap-2 text-[10px] font-black text-emerald-600 hover:bg-emerald-600 hover:text-white px-4 py-2 rounded-full transition-all border border-emerald-100 bg-white"
-                >
+                <button onClick={() => window.print()} className="flex items-center gap-2 text-[10px] font-black text-emerald-600 px-4 py-2 rounded-full border border-emerald-100 bg-white hover:bg-emerald-600 hover:text-white transition-all">
                   <Printer className="w-3 h-3" /> PRINT PASSPORT
                 </button>
               </div>
               <div className="grid grid-cols-3 gap-4">
                 {[Battery, Cpu, Wifi].map((Icon, i) => (
-                  <div key={i} className="bg-white p-4 rounded-2xl flex flex-col items-center gap-3 border border-slate-100 shadow-sm group/icon">
-                    <Icon className="w-5 h-5 text-slate-300 group-hover/icon:text-emerald-500 transition-colors" />
+                  <div key={i} className="bg-white p-4 rounded-2xl flex flex-col items-center gap-3 border border-slate-100 shadow-sm">
+                    <Icon className="w-5 h-5 text-slate-300" />
                     <CheckCircle2 className="w-4 h-4 text-emerald-500" />
                   </div>
                 ))}
@@ -138,88 +126,32 @@ export const DeviceCard = ({ device, onDelete, isDetailView = false }: DeviceCar
             </div>
           </div>
 
-          {/* RIGHT: RECORDS */}
           <div className="lg:w-3/5 lg:border-l lg:border-slate-100 lg:pl-16 space-y-10">
             <div className="flex justify-between items-center border-b border-slate-100">
               <div className="flex gap-10">
-                <button 
-                  onClick={() => setActiveTab('maintenance')}
-                  className={cn("text-xs font-black uppercase tracking-[0.2em] transition-all pb-6 -mb-[1px]", activeTab === 'maintenance' ? "text-emerald-600 border-b-2 border-emerald-600" : "text-slate-400 hover:text-slate-900")}
-                >
-                  Maintenance
-                </button>
-                <button 
-                  onClick={() => setActiveTab('location')}
-                  className={cn("text-xs font-black uppercase tracking-[0.2em] transition-all pb-6 -mb-[1px]", activeTab === 'location' ? "text-emerald-600 border-b-2 border-emerald-600" : "text-slate-400 hover:text-slate-900")}
-                >
-                  Tracking
-                </button>
+                <button onClick={() => setActiveTab('maintenance')} className={cn("text-xs font-black uppercase tracking-[0.2em] transition-all pb-6 -mb-[1px]", activeTab === 'maintenance' ? "text-emerald-600 border-b-2 border-emerald-600" : "text-slate-400 hover:text-slate-900")}>Maintenance</button>
+                <button onClick={() => setActiveTab('location')} className={cn("text-xs font-black uppercase tracking-[0.2em] transition-all pb-6 -mb-[1px]", activeTab === 'location' ? "text-emerald-600 border-b-2 border-emerald-600" : "text-slate-400 hover:text-slate-900")}>Tracking</button>
               </div>
-              {!isDetailView && (
-                <button 
-                  onClick={() => onDelete(device.id)}
-                  className="p-2 text-slate-200 hover:text-rose-500 transition-colors"
-                >
-                  <Trash2 className="w-5 h-5" />
-                </button>
-              )}
+              {!isDetailView && <button onClick={() => onDelete(device.id)} className="p-2 text-slate-200 hover:text-rose-500 transition-colors print-hidden"><Trash2 className="w-5 h-5" /></button>}
             </div>
 
             <div className="space-y-8 h-80 overflow-y-auto custom-scrollbar pr-6">
               {activeTab === 'maintenance' ? (
                 logs.length > 0 ? logs.map((log, i) => (
-                  <div key={i} className="flex gap-8 pb-8 border-b border-slate-50 last:border-0 group/log">
-                    <div className="text-[10px] font-black text-slate-300 whitespace-nowrap pt-1 uppercase tracking-widest group-hover/log:text-emerald-500 transition-colors">{log.date}</div>
+                  <div key={i} className="flex gap-8 pb-8 border-b border-slate-50 last:border-0">
+                    <div className="text-[10px] font-black text-slate-300 whitespace-nowrap pt-1 uppercase tracking-widest">{log.date}</div>
                     <div className="text-sm text-slate-700 leading-relaxed font-bold">{log.description}</div>
                   </div>
-                )) : <p className="text-xs text-slate-400 italic">No maintenance logs recorded.</p>
+                )) : <p className="text-xs text-gray-400 italic">No logs recorded.</p>
               ) : (
                 locations.length > 0 ? locations.map((loc, i) => (
-                  <div key={i} className="flex gap-8 pb-8 border-b border-slate-50 last:border-0 group/log">
-                    <div className="text-[10px] font-black text-slate-300 whitespace-nowrap pt-1 uppercase tracking-widest group-hover/log:text-emerald-500 transition-colors">{loc.date}</div>
-                    <div className="flex items-center gap-3 text-sm text-slate-800 font-black">
-                      <MapPin className="w-4 h-4 text-slate-300" /> {loc.location}
-                    </div>
+                  <div key={i} className="flex gap-8 pb-8 border-b border-slate-50 last:border-0">
+                    <div className="text-[10px] font-black text-slate-300 whitespace-nowrap pt-1 uppercase tracking-widest">{loc.date}</div>
+                    <div className="flex items-center gap-3 text-sm text-slate-800 font-black"><MapPin className="w-4 h-4 text-slate-300" /> {loc.location}</div>
                   </div>
-                )) : <p className="text-xs text-slate-400 italic">No location history found.</p>
+                )) : <p className="text-xs text-gray-400 italic">No history found.</p>
               )}
             </div>
-
-            {showForm ? (
-              <div className="p-8 bg-slate-50 rounded-[2rem] border border-slate-100 space-y-6 animate-in slide-in-from-bottom-4 duration-500 shadow-inner">
-                <div className="flex flex-col md:flex-row gap-6">
-                  <div className="flex-1 space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Record Details</label>
-                    <input 
-                      placeholder={activeTab === 'maintenance' ? "Describe maintenance..." : "Enter new location..."}
-                      className="w-full bg-white border border-slate-200 rounded-2xl p-4 text-sm outline-none focus:border-emerald-500 shadow-sm font-bold"
-                      value={newVal}
-                      onChange={(e) => setNewVal(e.target.value)}
-                    />
-                  </div>
-                  <div className="w-full md:w-48 space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Timestamp</label>
-                    <input 
-                      type="date"
-                      className="w-full bg-white border border-slate-200 rounded-2xl p-4 text-[11px] font-black outline-none focus:border-emerald-500 shadow-sm"
-                      value={customDate}
-                      onChange={(e) => setCustomDate(e.target.value)}
-                    />
-                  </div>
-                </div>
-                <div className="flex gap-4">
-                  <button onClick={handleAddRecord} className="flex-1 bg-slate-900 text-white text-[10px] font-black py-4 rounded-2xl uppercase tracking-[0.2em] shadow-xl shadow-slate-200">COMMIT RECORD</button>
-                  <button onClick={() => setShowForm(false)} className="px-8 py-4 text-slate-400 text-[10px] font-black hover:bg-slate-200 rounded-2xl uppercase tracking-widest transition-all">CANCEL</button>
-                </div>
-              </div>
-            ) : (
-              <button 
-                onClick={() => setShowForm(true)}
-                className="flex items-center gap-3 text-[10px] font-black text-emerald-600 bg-emerald-50 px-8 py-4 rounded-full hover:bg-emerald-600 hover:text-white transition-all uppercase tracking-widest print:hidden border border-emerald-100"
-              >
-                <Plus className="w-4 h-4" /> {activeTab === 'maintenance' ? 'Add Log' : 'New Tracking Entry'}
-              </button>
-            )}
 
             <div className="pt-10 flex items-end justify-between border-t border-slate-100 mt-6">
               <div className="space-y-2">
@@ -229,24 +161,11 @@ export const DeviceCard = ({ device, onDelete, isDetailView = false }: DeviceCar
                 </div>
               </div>
               
-              {/* CLICKABLE QR CODE */}
-              <Link 
-                href={passportPath}
-                className="p-5 bg-white border border-slate-100 rounded-[2.5rem] shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-500 relative group/qr"
-              >
+              <Link href={passportPath} className="p-5 bg-white border border-slate-100 rounded-[2.5rem] shadow-xl relative group/qr print-hidden">
                 <div className="absolute inset-0 bg-emerald-500/0 group-hover/qr:bg-emerald-500/5 transition-all rounded-[2.5rem] flex items-center justify-center">
                   <ExternalLink className="w-6 h-6 text-emerald-500 opacity-0 group-hover/qr:opacity-100 transition-all scale-50 group-hover/qr:scale-100" />
                 </div>
-                {qrUrl ? (
-                  <QRCodeSVG 
-                    value={qrUrl} 
-                    size={90} 
-                    level="L"
-                    includeMargin={false}
-                  />
-                ) : (
-                  <div className="w-20 h-20 bg-slate-50 animate-pulse rounded-2xl" />
-                )}
+                {qrUrl ? <QRCodeSVG value={qrUrl} size={90} level="L" /> : <div className="w-20 h-20 bg-slate-50 animate-pulse rounded-2xl" />}
               </Link>
             </div>
           </div>
