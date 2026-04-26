@@ -27,29 +27,24 @@ export default function DevicePassportPage() {
       setDevice(found);
       setIsLoading(false);
     } else {
-      // 2. Check for portable data in URL (Link Share or QR Scan)
-      const pData = searchParams.get('p'); // Long data for Links
-      const qData = searchParams.get('q'); // Short data for QR
+      // 2. Check for TINY data in URL (QR Scan from other device)
+      const vData = searchParams.get('v');
 
-      if (pData || qData) {
+      if (vData) {
         try {
-          const rawData = pData || qData;
-          if (!rawData) return;
+          const decodedStr = atob(decodeURIComponent(vData));
+          const [name, sn, status] = decodedStr.split('|');
           
-          const decoded = JSON.parse(atob(decodeURIComponent(rawData)));
-          
-          // Reconstruct device from whatever data we have
           const portableDevice: Device = {
             id: id as string,
-            name: decoded.n || decoded.name || "Unknown Asset",
-            brand: decoded.b || decoded.brand || "-",
-            model: decoded.m || decoded.model || "-",
-            serialNumber: decoded.s || decoded.serialNumber || "-",
-            category: decoded.c || decoded.category || "Others",
-            currentLocation: decoded.l || decoded.currentLocation || "Unknown",
-            maintenanceStatus: decoded.st || decoded.status || "Healthy",
-            imageUrl: decoded.img || null,
-            owner: decoded.o || decoded.owner || "Enterprise User",
+            name: name || "Asset Passport",
+            brand: "-",
+            model: "-",
+            serialNumber: sn || "-",
+            category: "Others",
+            currentLocation: "External Scan",
+            maintenanceStatus: (status as any) || "Healthy",
+            owner: "Enterprise Registry",
             maintenanceLogs: [],
             locationHistory: [],
             purchaseHistory: [],
@@ -58,7 +53,7 @@ export default function DevicePassportPage() {
           setDevice(portableDevice);
           setIsPortable(true);
         } catch (e) {
-          console.error("Failed to decode portable data", e);
+          console.error("Failed to decode tiny data", e);
         }
       }
       setIsLoading(false);
@@ -80,16 +75,18 @@ export default function DevicePassportPage() {
       <div className="bg-[#f8f9fa] min-h-[calc(100vh-80px)] py-12 px-6">
         <div className="max-w-7xl mx-auto space-y-8">
           <button 
-            onClick={() => router.back()}
+            onClick={() => router.push('/')}
             className="flex items-center gap-2 text-xs font-bold text-gray-500 uppercase tracking-widest hover:text-black transition-colors"
           >
             <ArrowLeft className="w-4 h-4" /> Back to Dashboard
           </button>
 
           {isPortable && (
-            <div className="p-4 bg-[#e8f5e9] border border-[#2e7d32]/20 rounded-2xl flex items-center gap-3 text-[#2e7d32] text-xs font-bold shadow-sm">
-              <ShieldCheck className="w-5 h-5" />
-              <span>SECURE PORTABLE PASSPORT: You are viewing a verified digital asset identity via QR scan.</span>
+            <div className="p-5 bg-white border border-[#2e7d32]/10 rounded-2xl flex items-center gap-4 text-[#2e7d32] text-[10px] font-bold shadow-sm uppercase tracking-widest">
+              <div className="w-8 h-8 bg-[#e8f5e9] rounded-full flex items-center justify-center">
+                <ShieldCheck className="w-5 h-5" />
+              </div>
+              <span>Digital Asset Identity Verified via QR Passport</span>
             </div>
           )}
 

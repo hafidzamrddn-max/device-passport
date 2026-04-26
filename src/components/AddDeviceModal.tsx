@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { X, Smartphone, User, Hash, Settings, Info, ChevronRight, Image as ImageIcon, Wand2, MapPin, Tag } from 'lucide-react';
+import { X, Smartphone, User, Hash, Settings, Info, ChevronRight, Wand2, MapPin, Tag } from 'lucide-react';
 import { Device, MaintenanceStatus, DeviceCategory } from '@/types/device';
 
 interface AddDeviceModalProps {
@@ -9,14 +9,6 @@ interface AddDeviceModalProps {
   onClose: () => void;
   onAdd: (device: Device) => void;
 }
-
-const CATEGORY_IMAGES: Record<DeviceCategory, string> = {
-  'Electronic': 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=600&auto=format&fit=crop',
-  'Furniture': 'https://images.unsplash.com/photo-1524758631624-e2822e304c36?w=600&auto=format&fit=crop',
-  'Vehicles': 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=600&auto=format&fit=crop',
-  'Infrastructure': 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=600&auto=format&fit=crop',
-  'Others': 'https://images.unsplash.com/photo-1588508065123-287b28e013da?w=600&auto=format&fit=crop'
-};
 
 export const AddDeviceModal = ({ isOpen, onClose, onAdd }: AddDeviceModalProps) => {
   const [formData, setFormData] = useState({
@@ -31,40 +23,14 @@ export const AddDeviceModal = ({ isOpen, onClose, onAdd }: AddDeviceModalProps) 
     imageUrl: '',
   });
 
-  const [autoGenImage, setAutoGenImage] = useState(true);
-
   if (!isOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    let finalImageUrl = formData.imageUrl;
-    if (autoGenImage) {
-      // Mapping categories to specific Unsplash keywords
-      const categoryKeywords: Record<DeviceCategory, string> = {
-        'Electronic': 'technology',
-        'Furniture': 'office,furniture',
-        'Vehicles': 'car,ev',
-        'Infrastructure': 'architecture,industrial',
-        'Others': 'object,minimal'
-      };
-
-      let keywords = categoryKeywords[formData.category];
-      
-      // Specific keyword overrides
-      const nameLower = formData.name.toLowerCase();
-      if (nameLower.includes('laptop')) keywords = 'macbook,laptop';
-      if (nameLower.includes('phone')) keywords = 'iphone,smartphone';
-      if (nameLower.includes('monitor')) keywords = 'display,setup';
-      if (nameLower.includes('camera')) keywords = 'dslr,lens';
-
-      // Append brand for more specificity
-      finalImageUrl = `https://source.unsplash.com/featured/600x600/?${keywords},${formData.brand.toLowerCase()}`;
-    }
-
     const newDevice: Device = {
       ...formData,
-      imageUrl: finalImageUrl,
+      imageUrl: null,
       id: Math.random().toString(36).substr(2, 9),
       createdAt: new Date().toISOString(),
       locationHistory: [
@@ -107,7 +73,7 @@ export const AddDeviceModal = ({ isOpen, onClose, onAdd }: AddDeviceModalProps) 
                 <Tag className="w-6 h-6" />
                 <div>
                   <p className="text-xs font-bold uppercase tracking-widest">Category-Based</p>
-                  <p className="text-[10px] opacity-70">Automatic visual matching per category</p>
+                  <p className="text-[10px] opacity-70">Automatic categorization in registry</p>
                 </div>
               </div>
               <div className="flex items-center gap-4 p-4 bg-white/10 rounded-xl border border-white/10">
@@ -203,43 +169,6 @@ export const AddDeviceModal = ({ isOpen, onClose, onAdd }: AddDeviceModalProps) 
                       onChange={(e) => setFormData({ ...formData, currentLocation: e.target.value })}
                     />
                   </div>
-                </div>
-
-                <div className="space-y-4 pt-4 border-t border-gray-100">
-                  <div className="flex items-center justify-between">
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Visual Identification</label>
-                    <div className="flex bg-gray-100 p-1 rounded-lg">
-                      <button 
-                        type="button"
-                        onClick={() => setAutoGenImage(true)}
-                        className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${autoGenImage ? 'bg-white shadow-sm text-[#2e7d32]' : 'text-gray-400'}`}
-                      >
-                        SMART MATCH
-                      </button>
-                      <button 
-                        type="button"
-                        onClick={() => setAutoGenImage(false)}
-                        className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${!autoGenImage ? 'bg-white shadow-sm text-[#2e7d32]' : 'text-gray-400'}`}
-                      >
-                        MANUAL URL
-                      </button>
-                    </div>
-                  </div>
-
-                  {!autoGenImage ? (
-                    <input
-                      type="url"
-                      placeholder="Paste image URL here..."
-                      className="w-full border-b-2 border-gray-100 py-2 text-sm outline-none focus:border-[#2e7d32]"
-                      value={formData.imageUrl}
-                      onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
-                    />
-                  ) : (
-                    <div className="p-4 bg-gray-50 rounded-xl flex items-center gap-4 border border-gray-100">
-                      <ImageIcon className="w-5 h-5 text-gray-400" />
-                      <p className="text-[10px] font-bold text-gray-500 uppercase">Image will be automatically assigned based on category and model</p>
-                    </div>
-                  )}
                 </div>
 
                 <div className="space-y-1">
