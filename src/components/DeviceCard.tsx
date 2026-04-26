@@ -62,14 +62,15 @@ export const DeviceCard = ({ device, onDelete, isDetailView = false }: DeviceCar
 
   const generatePDF = async () => {
     if (!cardRef.current) return null;
-    const canvas = await html2canvas(cardRef.current, { scale: 2 });
-    const imgData = canvas.toDataURL('image/png');
+    // Lower scale to keep payload small for Vercel (avoid 413 error)
+    const canvas = await html2canvas(cardRef.current, { scale: 1.5, useCORS: true });
+    const imgData = canvas.toDataURL('image/jpeg', 0.7); // Use JPEG with 0.7 compression
     const pdf = new jsPDF({
       orientation: 'landscape',
       unit: 'px',
       format: [canvas.width, canvas.height]
     });
-    pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+    pdf.addImage(imgData, 'JPEG', 0, 0, canvas.width, canvas.height);
     return pdf.output('datauristring');
   };
 
@@ -80,10 +81,12 @@ export const DeviceCard = ({ device, onDelete, isDetailView = false }: DeviceCar
 
     try {
       const pdfBase64 = await generatePDF();
+      
+      // SHORTER DATA for Portable QR/Link
       const portableData = btoa(JSON.stringify({
         n: device.name, b: device.brand, m: device.model, s: device.serialNumber,
         c: device.category, l: device.currentLocation, st: device.maintenanceStatus,
-        img: device.imageUrl, o: device.owner
+        o: device.owner
       }));
       const passportUrl = `${origin}/device/${device.id}?p=${encodeURIComponent(portableData)}`;
 
@@ -100,27 +103,32 @@ export const DeviceCard = ({ device, onDelete, isDetailView = false }: DeviceCar
         }),
       });
 
+      const result = await response.json();
       if (response.ok) {
         setIsSent(true);
         setTimeout(() => {
           setIsSent(false);
           setShowEmailModal(false);
         }, 3000);
+      } else {
+        alert("Error: " + (result.error || "Failed to send email"));
       }
     } catch (err) {
       console.error(err);
+      alert("System error. Please check console.");
     } finally {
       setIsSending(false);
     }
   };
 
-  const portableData = btoa(JSON.stringify({
-    n: device.name, b: device.brand, m: device.model, s: device.serialNumber,
-    c: device.category, l: device.currentLocation, st: device.maintenanceStatus,
-    img: device.imageUrl, o: device.owner
+  // REDUCED DATA for QR to ensure it is scannable
+  const qrData = btoa(JSON.stringify({
+    n: device.name.substring(0, 20),
+    s: device.serialNumber.substring(0, 15),
+    id: device.id.substring(0, 8)
   }));
 
-  const passportUrl = origin ? `${origin}/device/${device.id}?p=${encodeURIComponent(portableData)}` : '';
+  const qrUrl = origin ? `${origin}/device/${device.id}?q=${encodeURIComponent(qrData)}` : '';
 
   return (
     <div ref={cardRef} className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow relative">
@@ -189,7 +197,6 @@ export const DeviceCard = ({ device, onDelete, isDetailView = false }: DeviceCar
                   <button 
                     onClick={() => setShowEmailModal(true)}
                     className="p-1 text-gray-400 hover:text-[#2e7d32] transition-colors"
-                    title="Send to Email"
                   >
                     <Mail className="w-4 h-4" />
                   </button>
@@ -303,9 +310,9 @@ export const DeviceCard = ({ device, onDelete, isDetailView = false }: DeviceCar
                 </div>
               </div>
               <div className="p-4 bg-white border border-gray-100 rounded-xl shadow-sm">
-                {passportUrl ? (
-                  <a href={passportUrl} target="_blank" rel="noopener noreferrer">
-                    <QRCodeSVG value={passportUrl} size={80} level="H" />
+                {qrUrl ? (
+                  <a href={qrUrl} target="_blank" rel="noopener noreferrer">
+                    <QRCodeSVG value={qrUrl} size={100} level="M" />
                   </a>
                 ) : (
                   <div className="w-20 h-20 bg-gray-50 animate-pulse rounded" />
